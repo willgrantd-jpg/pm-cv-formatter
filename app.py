@@ -281,4 +281,4 @@ if __name__ == "__main__":
     print(f"\n  PM CV Formatter running at {url}\n")
     # Open browser after a short delay so Flask has time to start
     threading.Timer(1.2, lambda: webbrowser.open(url)).start()
-    app.run(host="127.0.0.1", port=port, debug=False)
+    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=True, reloader_type="stat")
