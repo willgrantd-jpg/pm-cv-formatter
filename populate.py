@@ -421,7 +421,7 @@ def _add_experience_row(table, entry, is_last=False):
         pb = cc.add_paragraph()
         _set_spacing(pb, before=0, after=40, line=280)
         _add_run(pb, '—  ', size_hp=18, color=GOLD)
-        _add_run(pb, bullet, size_hp=18, color=BODY)
+        _add_run(pb, bullet, font_name='Montserrat', size_hp=18, color=BODY)
 
     # Thin warm-gray rule between entries (omit after the last one)
     if not is_last:
@@ -475,7 +475,7 @@ def _add_experience_group_row(table, entry, is_last=False):
             pb = cc.add_paragraph()
             _set_spacing(pb, before=0, after=40, line=280)
             _add_run(pb, '—  ', size_hp=18, color=GOLD)
-            _add_run(pb, bullet, size_hp=18, color=BODY)
+            _add_run(pb, bullet, font_name='Montserrat', size_hp=18, color=BODY)
 
         # Thin divider between roles within the same company (not after last role)
         if not is_last_role:
@@ -949,11 +949,11 @@ def populate_template(template_path: str, data: dict, output_path: str,
     # 1 ── Candidate name (+ optional photo placeholder)
     _name_header(doc, data, show_photo=flags['photo'])
 
-    # 2 ── Summary (Georgia italic, 10 pt)
+    # 2 ── Summary (Montserrat italic, 10 pt)
     p_sum = doc.add_paragraph()
     _set_spacing(p_sum, before=0, after=240, line=340)
     _add_run(p_sum, data.get('summary') or '',
-             font_name='Georgia', size_hp=20, italic=True, color=BODY)
+             font_name='Montserrat', size_hp=20, italic=True, color=BODY)
 
     # 3 ── Key Achievements box
     if not flags['remove_achievements']:

@@ -105,6 +105,46 @@ _log("=== setup.py started ===")
 _log(f"APP_DIR: {APP_DIR}")
 _log(f"sys.executable: {sys.executable}")
 
+# ─── Font installer ───────────────────────────────────────────────────────────
+def _install_fonts():
+    """Install bundled fonts to the user font folder — no admin rights needed."""
+    import shutil, ctypes
+    fonts_src = APP_DIR / "assets" / "fonts"
+    fonts_dst = Path(os.environ.get("LOCALAPPDATA", "")) / "Microsoft" / "Windows" / "Fonts"
+    fonts_dst.mkdir(parents=True, exist_ok=True)
+
+    registry = {
+        "Montserrat.ttf":        "Montserrat (TrueType)",
+        "Montserrat-Italic.ttf": "Montserrat Italic (TrueType)",
+    }
+    installed_any = False
+    for filename, reg_name in registry.items():
+        src = fonts_src / filename
+        dst = fonts_dst / filename
+        if src.exists() and not dst.exists():
+            shutil.copy2(str(src), str(dst))
+            subprocess.run(
+                ["reg", "add",
+                 r"HKCU\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts",
+                 "/v", reg_name, "/d", str(dst), "/f"],
+                capture_output=True
+            )
+            installed_any = True
+            _log(f"Font installed: {filename}")
+
+    if installed_any:
+        # Broadcast WM_FONTCHANGE so running apps pick up the new fonts
+        try:
+            result = ctypes.c_long(0)
+            ctypes.windll.user32.SendMessageTimeoutW(
+                0xFFFF, 0x001D, 0, 0, 2, 1000, ctypes.byref(result))
+        except Exception:
+            pass
+
+
+# ─── Install fonts ────────────────────────────────────────────────────────────
+_install_fonts()
+
 # ─── Auto-update from GitHub ──────────────────────────────────────────────────
 say("Checking for updates...")
 _check_for_update()
