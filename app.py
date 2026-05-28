@@ -7,12 +7,16 @@ Then open: http://localhost:5000
 Drag-drop a CV (docx or pdf) → get back a formatted PM Profile .docx.
 """
 
+import sys
+from pathlib import Path
+# Ensure the app directory is on sys.path (required when run via bundled Python)
+sys.path.insert(0, str(Path(__file__).parent))
+
 import json
 import os
 import re
 import threading
 import webbrowser
-from pathlib import Path
 
 from flask import Flask, jsonify, render_template, request, send_file
 
