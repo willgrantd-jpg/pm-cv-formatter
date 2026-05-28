@@ -949,11 +949,11 @@ def populate_template(template_path: str, data: dict, output_path: str,
     # 1 ── Candidate name (+ optional photo placeholder)
     _name_header(doc, data, show_photo=flags['photo'])
 
-    # 2 ── Summary (Montserrat italic, 10 pt)
+    # 2 ── Summary (Georgia italic, 10 pt)
     p_sum = doc.add_paragraph()
     _set_spacing(p_sum, before=0, after=240, line=340)
     _add_run(p_sum, data.get('summary') or '',
-             font_name='Montserrat', size_hp=20, italic=True, color=BODY)
+             font_name='Georgia', size_hp=20, italic=True, color=BODY)
 
     # 3 ── Key Achievements box
     if not flags['remove_achievements']:
