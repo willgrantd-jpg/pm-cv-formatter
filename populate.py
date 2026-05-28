@@ -346,7 +346,7 @@ def _selected_impact(doc, achievement):
     # "SELECTED IMPACT" label
     p_label = cell.paragraphs[0]
     _set_spacing(p_label, before=0, after=100)
-    _add_run(p_label, 'KEY ACHIEVEMENTS', font_name='Calibri',
+    _add_run(p_label, 'KEY ACHIEVEMENTS', font_name='Montserrat',
              size_hp=16, bold=True, color=GOLD, char_spacing=150)
 
     title   = (achievement.get('title') or '').strip()
