@@ -1,0 +1,1838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PM CV Formatter</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Design tokens ─────────────────────────────────────────────────── */
+    :root {
+      --bg-base:        #08090a;
+      --bg-elevated:    #101113;
+      --bg-overlay:     #18191b;
+      --bg-hover:       #1e2022;
+      --border-subtle:  rgba(255,255,255,0.05);
+      --border-default: rgba(255,255,255,0.09);
+      --border-focus:   rgba(255,255,255,0.22);
+      --text-primary:   #e8e9ea;
+      --text-secondary: #8b8d91;
+      --text-tertiary:  #55575b;
+      --pm-blue:        #4a7fb8;
+      --pm-blue-dim:    rgba(74,127,184,0.12);
+      --pm-blue-border: rgba(74,127,184,0.30);
+      --pm-gold:        #c9a84c;
+      --success:        #3d9e6e;
+      --success-dim:    rgba(61,158,110,0.12);
+      --success-border: rgba(61,158,110,0.25);
+      --error:          #c0443a;
+      --error-dim:      rgba(192,68,58,0.12);
+      --error-border:   rgba(192,68,58,0.25);
+      --font-sans:      'Inter', system-ui, sans-serif;
+      --font-mono:      'JetBrains Mono', 'Fira Mono', monospace;
+      --radius-sm:      6px;
+      --radius-md:      8px;
+      --radius-lg:      10px;
+      --transition:     150ms ease;
+    }
+
+    /* ── Reset / base ──────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-primary);
+      background-color: var(--bg-base);
+      background-image: radial-gradient(circle, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 24px 24px;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────────── */
+    .layout {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .app-body {
+      display: grid;
+      grid-template-columns: 260px 1fr 230px;
+      gap: 12px;
+      align-items: start;
+    }
+
+    .side-panel {
+      position: sticky;
+      top: 24px;
+    }
+
+    .center-col {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .panel-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .panel-hint {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    /* ── Consultant Notes (left chat panel) ─── */
+    .chat-feed {
+      min-height: 80px;
+      max-height: 240px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 10px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.08) transparent;
+    }
+
+    .chat-feed-empty {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      text-align: center;
+      padding: 16px 0;
+      line-height: 1.6;
+    }
+
+    .chat-bubble {
+      background: var(--bg-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 7px 26px 7px 9px;
+      font-size: 11px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      position: relative;
+      word-break: break-word;
+    }
+
+    .chat-bubble-remove {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      width: 14px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+      padding: 0;
+      transition: color var(--transition);
+    }
+    .chat-bubble-remove:hover { color: var(--error); }
+
+    .chat-textarea {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--bg-base);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 11px;
+      font-family: var(--font-sans);
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+      transition: border-color var(--transition);
+      min-height: 70px;
+      display: block;
+      margin-bottom: 6px;
+    }
+    .chat-textarea:focus { border-color: var(--border-focus); }
+    .chat-textarea::placeholder { color: var(--text-tertiary); }
+
+    .chat-add-btn {
+      width: 100%;
+      height: 28px;
+      background: var(--bg-overlay);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .chat-add-btn:hover {
+      border-color: var(--border-focus);
+      color: var(--text-primary);
+      background: var(--bg-hover);
+    }
+
+    .chat-attach-btn {
+      width: 100%;
+      height: 28px;
+      margin-top: 5px;
+      background: transparent;
+      border: 1px dashed var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-tertiary);
+      font-size: 11px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: all var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .chat-attach-btn:hover {
+      border-color: var(--pm-gold);
+      color: var(--pm-gold);
+    }
+
+    .chat-attached-file {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+      padding: 5px 8px;
+      background: var(--bg-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+    .chat-attached-file span {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .chat-attached-remove {
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 0;
+      font-size: 11px;
+      line-height: 1;
+      flex-shrink: 0;
+      transition: color var(--transition);
+    }
+    .chat-attached-remove:hover { color: var(--error); }
+
+    /* ── Recent outputs (right panel) ─── */
+    .outputs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-height: 420px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.08) transparent;
+    }
+
+    .output-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 6px;
+      border-radius: var(--radius-sm);
+      transition: background var(--transition);
+    }
+    .output-item:hover { background: var(--bg-hover); }
+
+    .output-item-icon {
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .output-item-name {
+      flex: 1;
+      font-size: 10px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-decoration: none;
+      font-family: var(--font-mono);
+      transition: color var(--transition);
+    }
+    .output-item-name:hover { color: var(--text-primary); }
+
+    .output-dl-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-tertiary);
+      text-decoration: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
+    }
+    .output-dl-btn:hover {
+      color: var(--pm-blue);
+      border-color: var(--pm-blue-border);
+      background: var(--pm-blue-dim);
+    }
+
+    .outputs-empty {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    .clear-outputs-btn {
+      background: none;
+      border: none;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      transition: color var(--transition), background var(--transition);
+    }
+    .clear-outputs-btn:hover {
+      color: var(--error);
+      background: var(--error-dim);
+    }
+
+    /* ── Card ──────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+
+    /* ── Header ────────────────────────────────────────────────────────── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0;
+      background: transparent;
+      border: none;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-logo-pill {
+      display: flex;
+      align-items: center;
+      background: transparent;
+      padding: 4px 0;
+      height: 34px;
+    }
+    .header-logo-pill img {
+      height: 26px;
+      width: auto;
+      max-width: 180px;
+      object-fit: contain;
+      display: block;
+      filter:
+        brightness(0) invert(1)
+        drop-shadow(0 0 6px rgba(201,168,76,0.75))
+        drop-shadow(0 0 16px rgba(201,168,76,0.35));
+    }
+
+    .header-divider {
+      width: 1px;
+      height: 14px;
+      background: var(--border-default);
+    }
+
+    .header-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .header-settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-default);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
+      flex-shrink: 0;
+    }
+    .header-settings-btn:hover {
+      color: var(--text-primary);
+      border-color: var(--border-focus);
+      background: var(--bg-hover);
+    }
+
+    /* ── Drop zone ─────────────────────────────────────────────────────── */
+    .drop-zone {
+      border: 1px dashed var(--border-default);
+      border-radius: var(--radius-md);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition);
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: var(--pm-blue);
+      background: var(--pm-blue-dim);
+    }
+
+    .drop-zone-icon {
+      color: var(--text-tertiary);
+      margin-bottom: 10px;
+      transition: color var(--transition);
+    }
+    .drop-zone:hover .drop-zone-icon,
+    .drop-zone.drag-over .drop-zone-icon {
+      color: var(--pm-blue);
+    }
+
+    .drop-zone-primary {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .drop-zone-primary strong {
+      color: var(--pm-blue);
+      font-weight: 500;
+    }
+    .drop-zone-secondary {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+    }
+
+    #cv-file-input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── File list ─────────────────────────────────────────────────────── */
+    #file-list { display: none; }
+    #file-list.has-files { display: block; }
+
+    .file-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .file-list-count {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+    }
+    .clear-all-btn {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 3px;
+      transition: color var(--transition);
+    }
+    .clear-all-btn:hover { color: var(--error); }
+
+    .file-list-items {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .file-list-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      background: var(--bg-overlay);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      transition: border-color var(--transition);
+    }
+    .file-list-item:hover { border-color: var(--border-default); }
+
+    .fl-icon {
+      color: var(--text-tertiary);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .fl-name {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .fl-status {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .fl-status::before {
+      content: '';
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--text-tertiary);
+    }
+    .fl-status.ok::before  { background: var(--success); }
+    .fl-status.err::before { background: var(--error); }
+    .fl-status.err { cursor: help; }
+    .fl-status.busy::before {
+      background: var(--pm-blue);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .fl-download-wrap { display: none; }
+    .fl-download-wrap.visible { display: flex; align-items: center; }
+    .fl-download {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-default);
+      background: transparent;
+      color: var(--text-secondary);
+      text-decoration: none;
+      cursor: pointer;
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
+    }
+    .fl-download:hover {
+      color: var(--pm-blue);
+      border-color: var(--pm-blue-border);
+      background: var(--pm-blue-dim);
+    }
+
+    .fl-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color var(--transition), background var(--transition);
+    }
+    .fl-remove:hover {
+      color: var(--error);
+      background: var(--error-dim);
+    }
+
+    /* ── Format button ─────────────────────────────────────────────────── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      width: 100%;
+      height: 34px;
+      padding: 0 16px;
+      background: var(--pm-blue);
+      color: #fff;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: opacity var(--transition), background var(--transition);
+      letter-spacing: -0.01em;
+    }
+    .btn:hover:not(:disabled) { opacity: 0.88; }
+    .btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* ── Progress ──────────────────────────────────────────────────────── */
+    #progress { display: none; }
+    #progress.visible { display: block; }
+
+    .progress-track {
+      height: 2px;
+      background: var(--border-default);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--pm-blue);
+      border-radius: 99px;
+      transition: width 400ms ease;
+      width: 0%;
+    }
+
+    .progress-status {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    .progress-spinner {
+      color: var(--pm-blue);
+      animation: spin 1s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Result banner ─────────────────────────────────────────────────── */
+    #result { display: none; }
+    #result.visible { display: block; }
+
+    .result-banner {
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+    }
+    .result-banner.success {
+      background: var(--success-dim);
+      border: 1px solid var(--success-border);
+    }
+    .result-banner.error {
+      background: var(--error-dim);
+      border: 1px solid var(--error-border);
+    }
+
+    .result-banner-inner {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+    }
+    .result-banner-icon {
+      flex-shrink: 0;
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+    }
+    .result-banner.success .result-banner-icon { color: var(--success); }
+    .result-banner.error   .result-banner-icon { color: var(--error); }
+
+    .result-banner-body { flex: 1; }
+    .result-message {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+    }
+    .result-meta {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
+
+    /* ── Preview ────────────────────────────────────────────────────────── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .preview-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .preview-nav {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+    }
+
+    .preview-nav-btn {
+      background: none;
+      border: 1px solid var(--border-subtle);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: all var(--transition);
+    }
+    .preview-nav-btn:hover:not(:disabled) {
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+    .preview-nav-btn:disabled { opacity: 0.3; cursor: default; }
+
+    .preview-dl-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--pm-blue-border);
+      background: var(--pm-blue-dim);
+      color: var(--pm-blue);
+      font-size: 12px;
+      font-family: var(--font-sans);
+      text-decoration: none;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .preview-dl-btn:hover {
+      background: rgba(74,127,184,0.2);
+      border-color: var(--pm-blue);
+    }
+    .preview-dl-btn.hidden { display: none; }
+
+    .rerender-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-default);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .rerender-btn:hover { border-color: var(--pm-gold); color: var(--pm-gold); }
+    .rerender-btn.hidden { display: none; }
+
+    .rerender-panel {
+      border-top: 1px solid var(--border-subtle);
+      padding: 12px 0 10px;
+      margin-bottom: 8px;
+    }
+    .rerender-panel p { font-size: 11px; color: var(--text-secondary); margin-bottom:7px; }
+    .rerender-panel em { color: var(--pm-gold); font-style: normal; }
+    .rerender-panel textarea {
+      width: 100%;
+      min-height: 64px;
+      background: var(--bg-overlay);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      padding: 8px 10px;
+      resize: vertical;
+    }
+    .rerender-panel textarea:focus { outline: none; border-color: var(--border-focus); }
+    .rerender-panel .rerender-actions { display:flex; gap:8px; margin-top:8px; }
+    .rerender-status { font-size:11px; margin-top:6px; min-height:16px; }
+
+    .preview-scroll {
+      max-height: 460px;
+      overflow-y: auto;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: #fff;
+      padding: 28px 30px 24px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0,0,0,0.15) transparent;
+    }
+
+    .preview-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 120px;
+      color: var(--text-tertiary);
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+
+    /* ── Document styles inside preview ─── */
+    .pv-name {
+      font-family: Calibri, 'Gill Sans', sans-serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: #1B2A4E;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+      margin: 0 0 4px;
+    }
+    .pv-sub {
+      font-family: Calibri, sans-serif;
+      font-size: 8.5px;
+      color: #6B7280;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      margin: 0 0 10px;
+      padding-bottom: 7px;
+      border-bottom: 1.5px solid #1B2A4E;
+    }
+    .pv-summary {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-style: italic;
+      font-size: 9.5px;
+      color: #1A1A1A;
+      line-height: 1.65;
+      margin: 0 0 14px;
+    }
+    .pv-achievement {
+      background: #F4F1EA;
+      border-left: 3px solid #C8A961;
+      padding: 9px 12px;
+      margin-bottom: 14px;
+      border-radius: 0 3px 3px 0;
+    }
+    .pv-ach-title {
+      font-family: Calibri, sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      color: #1B2A4E;
+      margin: 0 0 5px;
+    }
+    .pv-ach-bullet {
+      font-family: Calibri, sans-serif;
+      font-size: 8.5px;
+      color: #3a3a3a;
+      margin: 2px 0 0 10px;
+      line-height: 1.5;
+    }
+    .pv-section {
+      font-family: Calibri, sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      color: #1B2A4E;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin: 14px 0 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #1B2A4E;
+    }
+    .pv-row {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 0 10px;
+      margin-bottom: 8px;
+      font-family: Calibri, sans-serif;
+      font-size: 8.5px;
+      color: #1A1A1A;
+    }
+    .pv-dates { color: #6B7280; padding-top: 1px; line-height: 1.4; }
+    .pv-role  { font-weight: 700; }
+    .pv-org   { color: #6B7280; }
+    .pv-tags  {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+    .pv-tag {
+      font-family: Calibri, sans-serif;
+      font-size: 8px;
+      color: #1B2A4E;
+      background: rgba(27,42,78,0.07);
+      border-radius: 3px;
+      padding: 2px 6px;
+    }
+
+    /* ── Modal ─────────────────────────────────────────────────────────── */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-overlay);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      width: 100%;
+      max-width: 400px;
+      margin: 16px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .modal-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .modal-close {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-default);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
+    }
+    .modal-close:hover {
+      color: var(--text-primary);
+      border-color: var(--border-focus);
+      background: var(--bg-hover);
+    }
+
+    .modal label {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+    }
+
+    #api-key-input {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      outline: none;
+      transition: border-color var(--transition);
+      margin-bottom: 10px;
+    }
+    #api-key-input:focus { border-color: var(--border-focus); }
+    #api-key-input::placeholder { color: var(--text-tertiary); }
+
+    .modal-hint {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .btn-ghost {
+      padding: 0 12px;
+      height: 30px;
+      background: transparent;
+      border: 1px solid var(--border-default);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: color var(--transition), border-color var(--transition), background var(--transition);
+      display: flex;
+      align-items: center;
+    }
+    .btn-ghost:hover {
+      color: var(--text-primary);
+      border-color: var(--border-focus);
+      background: var(--bg-hover);
+    }
+
+    .btn-primary-sm {
+      padding: 0 12px;
+      height: 30px;
+      background: var(--pm-blue);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      transition: opacity var(--transition);
+      display: flex;
+      align-items: center;
+    }
+    .btn-primary-sm:hover { opacity: 0.85; }
+
+    #key-save-status {
+      font-size: 11px;
+      margin-top: 6px;
+      font-family: var(--font-mono);
+      min-height: 16px;
+    }
+    #key-save-status.ok  { color: var(--success); }
+    #key-save-status.err { color: var(--error); }
+  </style>
+</head>
+<body>
+  <div class="layout">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-left">
+        <div class="header-logo-pill">
+          <img src="/logo" alt="Patrick Morgan" />
+        </div>
+        <div class="header-divider"></div>
+        <span class="header-subtitle">CV Formatter</span>
+      </div>
+      <button class="header-settings-btn" onclick="openSettings()" title="Settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06-.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Three-column body -->
+    <div class="app-body">
+
+      <!-- LEFT: Notes panels -->
+      <aside class="card side-panel">
+
+        <!-- Content Notes -->
+        <p class="panel-label">Content Notes</p>
+        <p class="panel-hint">Context for Claude — enriches summary, achievement and tone. Use power commands: <em>Target role: X</em>, <em>Sector focus: X</em>, <em>Tone: X</em>, <em>Exclude: X</em>, <em>Emphasise: X</em></p>
+        <div class="chat-feed" id="chat-feed">
+          <p class="chat-feed-empty" id="chat-feed-empty">No notes yet</p>
+        </div>
+        <textarea class="chat-textarea" id="chat-input"
+          placeholder="e.g. Target role: CFO&#10;Sector focus: Private Equity&#10;Tone: more senior"></textarea>
+        <button class="chat-add-btn" onclick="addNote()">+ Add note</button>
+
+        <!-- Supplementary doc attach -->
+        <input type="file" id="supp-doc-input" accept=".docx,.pdf,.txt" style="display:none"
+               onchange="onSuppDocSelected(this)" />
+        <button class="chat-attach-btn" onclick="document.getElementById('supp-doc-input').click()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+          Attach supplementary doc
+        </button>
+        <div class="chat-attached-file" id="supp-doc-chip" style="display:none">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <span id="supp-doc-name"></span>
+          <button class="chat-attached-remove" onclick="removeSuppDoc()" title="Remove">✕</button>
+        </div>
+
+        <!-- Divider -->
+        <div style="border-top:1px solid var(--border-subtle);margin:14px 0 12px;"></div>
+
+        <!-- Structural Notes -->
+        <p class="panel-label">Structural</p>
+        <p class="panel-hint">Controls document layout. Commands applied directly — not sent to Claude.</p>
+        <textarea class="chat-textarea" id="structural-input" style="min-height:90px;"
+          placeholder="Photo: yes&#10;Remove: achievements&#10;Remove: certifications&#10;Remove: skills&#10;Remove: languages"></textarea>
+
+      </aside>
+
+      <!-- CENTER: Upload + Preview -->
+      <div class="center-col">
+
+        <!-- Upload card -->
+        <div class="card">
+
+          <!-- Drop zone -->
+          <div class="drop-zone" id="drop-zone">
+            <input type="file" id="cv-file-input" accept=".docx,.pdf,.txt" multiple />
+            <div class="drop-zone-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="16 16 12 12 8 16"/>
+                <line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+            </div>
+            <p class="drop-zone-primary"><strong>Click to browse</strong> or drag &amp; drop</p>
+            <p class="drop-zone-secondary">.docx &nbsp;&middot;&nbsp; .pdf &nbsp;&middot;&nbsp; .txt</p>
+          </div>
+
+          <!-- File list -->
+          <div id="file-list" style="margin-top: 12px;">
+            <div class="file-list-header">
+              <span class="file-list-count" id="file-list-count">0 files</span>
+              <button class="clear-all-btn" onclick="clearAllFiles()">Clear all</button>
+            </div>
+            <div class="file-list-items" id="file-list-items"></div>
+          </div>
+
+          <!-- Format button -->
+          <button class="btn" id="format-btn" onclick="formatCV()" style="margin-top: 16px;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+            Format CV
+          </button>
+
+          <!-- Progress -->
+          <div id="progress" style="margin-top: 14px;">
+            <div class="progress-track">
+              <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-status">
+              <svg class="progress-spinner" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="2" x2="12" y2="6"/>
+                <line x1="12" y1="18" x2="12" y2="22"/>
+                <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/>
+                <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+                <line x1="2" y1="12" x2="6" y2="12"/>
+                <line x1="18" y1="12" x2="22" y2="12"/>
+                <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/>
+                <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+              </svg>
+              <span id="progress-text">Processing...</span>
+            </div>
+          </div>
+
+          <!-- Result banner -->
+          <div id="result" style="margin-top: 14px;"></div>
+
+        </div>
+
+        <!-- Preview card -->
+        <div class="card">
+          <div class="preview-card-header">
+            <p class="section-label" style="margin:0">Preview</p>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div class="preview-nav" id="preview-nav" style="display:none">
+                <button class="preview-nav-btn" id="prev-btn" onclick="shiftPreview(-1)" title="Previous">&#8592;</button>
+                <span id="preview-counter"></span>
+                <button class="preview-nav-btn" id="next-btn" onclick="shiftPreview(1)" title="Next">&#8594;</button>
+              </div>
+              <button class="rerender-btn hidden" id="rerender-toggle" onclick="toggleRerender()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+                Re-render
+              </button>
+              <a class="preview-dl-btn hidden" id="preview-dl" download></a>
+            </div>
+          </div>
+          <!-- Re-render panel (collapsed by default) -->
+          <div class="rerender-panel" id="rerender-panel" style="display:none">
+            <p>Describe the changes — content commands (<em>Target role: X</em>, <em>Tone: X</em>, <em>Exclude: X</em>) and layout commands (<em>Photo: yes</em>, <em>Remove: achievements</em>) work here.</p>
+            <textarea id="rerender-notes" placeholder="e.g. Target role: CFO&#10;Tone: more senior&#10;Remove: certifications&#10;Sector focus: Private Equity"></textarea>
+            <div class="rerender-actions">
+              <button class="btn" onclick="doRerender()">Apply changes</button>
+              <button class="btn" style="background:transparent;border-color:var(--border-default);color:var(--text-secondary);" onclick="closeRerender()">Cancel</button>
+            </div>
+            <div class="rerender-status" id="rerender-status"></div>
+          </div>
+          <div id="preview-area">
+            <div class="preview-empty" id="preview-empty">
+              <span>Format a CV to see a preview here</span>
+            </div>
+            <div class="preview-scroll" id="preview-scroll" style="display:none"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: Recent Outputs -->
+      <aside class="card side-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <p class="panel-label" style="margin:0">Recent Outputs</p>
+          <button class="clear-outputs-btn" id="clear-outputs-btn" onclick="clearOutputs()" title="Clear all outputs">Clear</button>
+        </div>
+        <div class="outputs-list" id="outputs-list">
+          <p class="outputs-empty" id="outputs-empty">No outputs yet</p>
+        </div>
+      </aside>
+
+    </div>
+
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-backdrop" id="settings-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Settings</span>
+        <button class="modal-close" onclick="closeSettings()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+      <label for="api-key-input">ANTHROPIC API KEY</label>
+      <input type="password" id="api-key-input" placeholder="sk-ant-..." value="{{ api_key }}" />
+      <p class="modal-hint">
+        Your key is stored locally in <code style="font-family: var(--font-mono); font-size: 10px; color: var(--text-secondary);">config.json</code> &mdash; never sent anywhere except Anthropic&rsquo;s API.
+      </p>
+      <div id="key-save-status"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeSettings()">Cancel</button>
+        <button class="btn-primary-sm" onclick="saveKey()">Save key</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ── Icon constants ─────────────────────────────────────────────────── */
+    const ICON_FILE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`;
+    const ICON_X = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    const ICON_DOWNLOAD = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+    const ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+    const ICON_ALERT = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+
+    /* ── State ──────────────────────────────────────────────────────────── */
+    // Each entry: { file, status: 'pending'|'busy'|'ok'|'err', filename, error }
+    let selectedFiles = [];
+
+    /* ── Drop zone ──────────────────────────────────────────────────────── */
+    const dropZone  = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('cv-file-input');
+
+    fileInput.addEventListener('change', () => {
+      addFiles(Array.from(fileInput.files));
+      fileInput.value = '';
+    });
+
+    dropZone.addEventListener('dragover', e => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      addFiles(Array.from(e.dataTransfer.files));
+    });
+
+    function addFiles(files) {
+      const allowed = ['.docx', '.pdf', '.txt'];
+      files.forEach(f => {
+        const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+        if (!allowed.includes(ext)) return;
+        // Deduplicate by name + size
+        if (selectedFiles.some(x => x.file.name === f.name && x.file.size === f.size)) return;
+        selectedFiles.push({ file: f, status: 'pending', filename: null, error: null });
+      });
+      renderFileList();
+    }
+
+    function removeFile(idx) {
+      selectedFiles.splice(idx, 1);
+      renderFileList();
+    }
+
+    function clearAllFiles() {
+      selectedFiles = [];
+      renderFileList();
+      const r = document.getElementById('result');
+      r.className = '';
+      r.innerHTML = '';
+    }
+
+    function renderFileList() {
+      const listEl  = document.getElementById('file-list');
+      const itemsEl = document.getElementById('file-list-items');
+      const countEl = document.getElementById('file-list-count');
+
+      if (selectedFiles.length === 0) {
+        listEl.classList.remove('has-files');
+        itemsEl.innerHTML = '';
+        return;
+      }
+
+      listEl.classList.add('has-files');
+      countEl.textContent = selectedFiles.length === 1 ? '1 file' : `${selectedFiles.length} files`;
+
+      itemsEl.innerHTML = selectedFiles.map((f, i) => {
+        const labelMap = { pending: 'pending', busy: 'processing', ok: 'done', err: 'error' };
+        const statusLabel = labelMap[f.status] || f.status;
+        const dlWrap = (f.status === 'ok' && f.filename)
+          ? `<div class="fl-download-wrap visible">
+               <a class="fl-download" href="/download/${encodeURIComponent(f.filename)}" download title="Download">${ICON_DOWNLOAD}</a>
+             </div>`
+          : `<div class="fl-download-wrap"></div>`;
+        const removable = f.status !== 'busy';
+        return `
+          <div class="file-list-item">
+            <span class="fl-icon">${ICON_FILE}</span>
+            <span class="fl-name" title="${f.file.name}">${f.file.name}</span>
+            <span class="fl-status ${f.status}"${f.status === 'err' && f.error ? ` title="${f.error.replace(/"/g, '&quot;')}"` : ''}>${statusLabel}</span>
+            ${dlWrap}
+            ${removable
+              ? `<button class="fl-remove" onclick="removeFile(${i})" title="Remove">${ICON_X}</button>`
+              : ''}
+          </div>`;
+      }).join('');
+    }
+
+    /* ── Consultant Notes (left panel) ─────────────────────────────────── */
+    let chatNotes  = [];
+    let suppDocFile = null;
+
+    function onSuppDocSelected(input) {
+      if (!input.files.length) return;
+      suppDocFile = input.files[0];
+      document.getElementById('supp-doc-name').textContent = suppDocFile.name;
+      document.getElementById('supp-doc-chip').style.display = 'flex';
+      // Reset so same file can be re-selected if removed then re-added
+      input.value = '';
+    }
+
+    function removeSuppDoc() {
+      suppDocFile = null;
+      document.getElementById('supp-doc-chip').style.display = 'none';
+      document.getElementById('supp-doc-name').textContent = '';
+    }
+
+    function addNote() {
+      const input = document.getElementById('chat-input');
+      const text  = input.value.trim();
+      if (!text) return;
+      chatNotes.push(text);
+      input.value = '';
+      renderNotes();
+    }
+
+    function removeNote(idx) {
+      chatNotes.splice(idx, 1);
+      renderNotes();
+    }
+
+    function renderNotes() {
+      const feed  = document.getElementById('chat-feed');
+      const empty = document.getElementById('chat-feed-empty');
+      if (!chatNotes.length) {
+        feed.innerHTML = '';
+        feed.appendChild(empty);
+        return;
+      }
+      feed.innerHTML = chatNotes.map((n, i) => `
+        <div class="chat-bubble">
+          ${n.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}
+          <button class="chat-bubble-remove" onclick="removeNote(${i})" title="Remove">✕</button>
+        </div>`).join('');
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    /* ── Format CV ──────────────────────────────────────────────────────── */
+    async function formatCV() {
+      if (selectedFiles.length === 0) {
+        showResult('error', 'No files selected', 'Drop one or more CV files above.');
+        return;
+      }
+
+      const pending = selectedFiles.filter(f => f.status === 'pending');
+      if (pending.length === 0) {
+        showResult('error', 'Nothing to process', 'All files are already done or errored. Clear and re-add to retry.');
+        return;
+      }
+
+      const btn      = document.getElementById('format-btn');
+      const progress = document.getElementById('progress');
+      btn.disabled   = true;
+      progress.classList.add('visible');
+
+      const r = document.getElementById('result');
+      r.className = '';
+      r.innerHTML = '';
+
+      const total      = pending.length;
+      let completed    = 0;
+      let successCount = 0;
+      let errorCount   = 0;
+
+      const chatInput      = document.getElementById('chat-input').value.trim();
+      const extraNotes     = [...chatNotes, ...(chatInput ? [chatInput] : [])].join('\n\n');
+      const structuralNotes = document.getElementById('structural-input').value.trim();
+
+      for (const entry of pending) {
+        entry.status = 'busy';
+        renderFileList();
+
+        const pct = Math.round((completed / total) * 100);
+        document.getElementById('progress-fill').style.width = pct + '%';
+        document.getElementById('progress-text').textContent =
+          `Processing ${completed + 1} of ${total}: ${entry.file.name}`;
+
+        const fd = new FormData();
+        fd.append('cv_file', entry.file);
+        if (extraNotes)       fd.append('extra_notes',       extraNotes);
+        if (structuralNotes)  fd.append('structural_notes', structuralNotes);
+        if (suppDocFile)      fd.append('supplementary_doc', suppDocFile);
+
+        try {
+          const resp = await fetch('/format', { method: 'POST', body: fd });
+          const data = await resp.json();
+          if (resp.ok && data.ok) {
+            entry.status   = 'ok';
+            entry.filename = data.filename;
+            previewResults.unshift({
+              cvData:          data.data,
+              filename:        data.filename,
+              sourceFilename:  data.source_filename  || '',
+              structuralFlags: data.structural_flags || {},
+            });
+            previewIndex = 0;
+            successCount++;
+          } else {
+            entry.status = 'err';
+            entry.error  = data.error || 'Unknown error';
+            errorCount++;
+          }
+        } catch (err) {
+          entry.status = 'err';
+          entry.error  = err.message;
+          errorCount++;
+        }
+
+        completed++;
+        renderFileList();
+      }
+
+      // Finish progress bar
+      document.getElementById('progress-fill').style.width = '100%';
+      setTimeout(() => {
+        progress.classList.remove('visible');
+        document.getElementById('progress-fill').style.width = '0%';
+      }, 600);
+
+      btn.disabled = false;
+
+      // Result summary
+      if (errorCount === 0) {
+        showResult('success',
+          `${successCount} profile${successCount !== 1 ? 's' : ''} formatted`,
+          'Check Recent Outputs below to download.'
+        );
+      } else if (successCount === 0) {
+        const firstErr = selectedFiles.find(f => f.status === 'err');
+        showResult('error', 'Formatting failed', firstErr ? firstErr.error : 'Unknown error');
+      } else {
+        const errDetails = selectedFiles
+          .filter(f => f.status === 'err')
+          .map(f => `<strong>${f.file.name}:</strong> ${f.error || 'Unknown error'}`)
+          .join('<br>');
+        showResult('success',
+          `${successCount} succeeded, ${errorCount} failed`,
+          errDetails
+        );
+      }
+
+      if (previewResults.length) renderPreview();
+      loadOutputs();
+    }
+
+    function showResult(type, message, detail) {
+      const el   = document.getElementById('result');
+      const icon = type === 'success' ? ICON_CHECK : ICON_ALERT;
+      el.innerHTML = `
+        <div class="result-banner ${type}">
+          <div class="result-banner-inner">
+            <span class="result-banner-icon">${icon}</span>
+            <div class="result-banner-body">
+              <p class="result-message">${message}</p>
+              ${detail ? `<p class="result-meta">${detail}</p>` : ''}
+            </div>
+          </div>
+        </div>`;
+      el.classList.add('visible');
+    }
+
+    /* ── Settings modal ─────────────────────────────────────────────────── */
+    function openSettings() {
+      document.getElementById('settings-modal').classList.add('open');
+      document.getElementById('key-save-status').textContent = '';
+    }
+    function closeSettings() {
+      document.getElementById('settings-modal').classList.remove('open');
+    }
+    document.getElementById('settings-modal').addEventListener('click', function(e) {
+      if (e.target === this) closeSettings();
+    });
+
+    async function saveKey() {
+      const key    = document.getElementById('api-key-input').value.trim();
+      const status = document.getElementById('key-save-status');
+      if (!key) {
+        status.className = 'err';
+        status.textContent = 'Please enter a key.';
+        return;
+      }
+      try {
+        const resp = await fetch('/save-key', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: key })
+        });
+        const data = await resp.json();
+        if (data.ok) {
+          status.className   = 'ok';
+          status.textContent = 'Saved.';
+          setTimeout(closeSettings, 900);
+        } else {
+          status.className   = 'err';
+          status.textContent = data.error || 'Save failed.';
+        }
+      } catch (e) {
+        status.className   = 'err';
+        status.textContent = 'Network error.';
+      }
+    }
+
+    /* ── Recent outputs ─────────────────────────────────────────────────── */
+    async function clearOutputs() {
+      if (!confirm('Delete all formatted CVs from the outputs folder?')) return;
+      try {
+        await fetch('/clear-outputs', { method: 'POST' });
+        loadOutputs();
+      } catch (e) { console.error(e); }
+    }
+
+    async function loadOutputs() {
+      try {
+        const resp  = await fetch('/outputs?t=' + Date.now());
+        const files = await resp.json();
+        const list  = document.getElementById('outputs-list');
+        const empty = document.getElementById('outputs-empty');
+        if (!files.length) {
+          list.innerHTML = '';
+          list.appendChild(empty);
+          return;
+        }
+        list.innerHTML = files.map(f => `
+          <div class="output-item">
+            <span class="output-item-icon">${ICON_FILE}</span>
+            <a class="output-item-name"
+               href="/download/${encodeURIComponent(f.name)}"
+               download title="${f.name}">${f.name.replace('_PM_Profile.docx','')}</a>
+            <a class="output-dl-btn"
+               href="/download/${encodeURIComponent(f.name)}"
+               download title="Download">${ICON_DOWNLOAD}</a>
+          </div>`).join('');
+      } catch (e) {
+        console.error('Failed to load outputs:', e);
+      }
+    }
+
+    /* ── Preview ────────────────────────────────────────────────────────── */
+    let previewResults = [];   // [{cvData, filename}, ...] most recent first
+    let previewIndex   = 0;
+
+    function shiftPreview(dir) {
+      previewIndex = Math.max(0, Math.min(previewResults.length - 1, previewIndex + dir));
+      renderPreview();
+    }
+
+    function renderPreview() {
+      const { cvData: d, filename, structuralFlags: sf } = previewResults[previewIndex];
+      const flags = sf || {};
+
+      // Show/hide nav — ← = previous (older), → = next (newer)
+      const nav = document.getElementById('preview-nav');
+      if (previewResults.length > 1) {
+        nav.style.display = 'flex';
+        document.getElementById('preview-counter').textContent =
+          `${previewIndex + 1} / ${previewResults.length}`;
+        document.getElementById('prev-btn').disabled = previewIndex === 0;
+        document.getElementById('next-btn').disabled = previewIndex === previewResults.length - 1;
+      } else {
+        nav.style.display = 'none';
+      }
+
+      // Re-render button
+      document.getElementById('rerender-toggle').classList.remove('hidden');
+
+      // Download button
+      const dlBtn = document.getElementById('preview-dl');
+      dlBtn.classList.remove('hidden');
+      dlBtn.href     = '/download/' + encodeURIComponent(filename);
+      dlBtn.download = filename;
+      dlBtn.innerHTML = ICON_DOWNLOAD + '&nbsp;Download';
+
+      // Switch panels
+      document.getElementById('preview-empty').style.display  = 'none';
+      const scroll = document.getElementById('preview-scroll');
+      scroll.style.display = 'block';
+
+      // Helper: escape HTML
+      const esc = s => s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+
+      // ── Name + label
+      const badgeImg = `<img src="/linkedin-badge" alt="LinkedIn"
+        style="height:13px;width:13px;vertical-align:super;margin-left:5px;
+               border-radius:2px;object-fit:contain;display:inline-block;" />`;
+      const liLink = d.linkedin_url
+        ? ` <a href="${esc(d.linkedin_url)}" target="_blank" rel="noopener"
+               style="display:inline-block;text-decoration:none;line-height:1;"
+               title="${esc(d.linkedin_url)}">${badgeImg}</a>`
+        : ` <span title="No LinkedIn URL found — add manually in Word"
+               style="display:inline-block;opacity:0.35;cursor:default;">${badgeImg}</span>`;
+
+      const photoBox = flags.photo
+        ? `<div style="width:56px;min-height:72px;flex-shrink:0;margin-left:12px;
+                       background:#EBEBEB;border:1px solid #CCCCCC;border-radius:2px;
+                       display:flex;align-items:center;justify-content:center;
+                       font-size:7px;color:#AAAAAA;font-style:italic;">Photo</div>` : '';
+
+      let html = flags.photo
+        ? `<div style="display:flex;align-items:flex-start;margin-bottom:4px;">
+             <div style="flex:1;min-width:0;">
+               <p class="pv-name" style="margin-bottom:2px;">${esc(d.name)}${liLink}</p>
+             </div>${photoBox}
+           </div>
+           <p class="pv-sub">Candidate Profile</p>`
+        : `<p class="pv-name">${esc(d.name)}${liLink}</p>
+           <p class="pv-sub">Candidate Profile</p>`;
+
+      // ── Summary
+      if (d.summary) {
+        html += `<p class="pv-summary">${esc(d.summary)}</p>`;
+      }
+
+      // ── Key Achievement
+      const ach = d.achievement;
+      if (ach && ach.title) {
+        // Support both new bullets[] and legacy bullet1/2/3
+        const achBullets = Array.isArray(ach.bullets) && ach.bullets.length
+          ? ach.bullets.filter(Boolean)
+          : [ach.bullet1, ach.bullet2, ach.bullet3].filter(Boolean);
+        html += `<div class="pv-achievement">
+          <p class="pv-ach-title">${esc(ach.title)}</p>
+          ${achBullets.map(b => `<p class="pv-ach-bullet">· ${esc(b)}</p>`).join('')}
+        </div>`;
+      }
+
+      // Helper: render bullets for an entry
+      const pvBullets = entry => {
+        const arr = Array.isArray(entry.bullets) && entry.bullets.length
+          ? entry.bullets.filter(Boolean)
+          : [entry.bullet1, entry.bullet2, entry.bullet3].filter(Boolean);
+        return arr.map(b =>
+          `<p style="margin:2px 0 2px 8px;font-size:7.5px;color:#1A1A1A;">
+            <span style="color:#C8A961;">—</span>&nbsp;${esc(b)}</p>`
+        ).join('');
+      };
+
+      // ── Experience
+      const exp = (d.experience || []).filter(Boolean);
+      if (exp.length) {
+        html += `<p class="pv-section">Experience</p>`;
+        exp.forEach(e => {
+          const dates = [e.startYear, e.endYear].filter(Boolean).join('–');
+          if (e.roles && e.roles.length) {
+            // Multi-role grouped entry
+            html += `<div class="pv-row">
+              <span class="pv-dates">${esc(dates)}</span>
+              <span>
+                <span class="pv-org">${esc(e.company)}</span>
+                ${e.roles.filter(Boolean).map(r => {
+                  const rdates = [r.startYear, r.endYear].filter(Boolean).join('–');
+                  return `<br><span class="pv-role" style="font-size:8px;">${esc(r.position)}</span>
+                    <span class="pv-dates" style="margin-left:6px;">${esc(rdates)}</span>
+                    ${pvBullets(r)}`;
+                }).join('')}
+              </span>
+            </div>`;
+          } else {
+            html += `<div class="pv-row">
+              <span class="pv-dates">${esc(dates)}</span>
+              <span>
+                <span class="pv-role">${esc(e.position)}</span>
+                <br><span class="pv-org">${esc(e.company)}</span>
+                ${pvBullets(e)}
+              </span>
+            </div>`;
+          }
+        });
+      }
+
+      // ── Education
+      const edu = (d.education || []).filter(Boolean);
+      if (edu.length) {
+        html += `<p class="pv-section">Education</p>`;
+        edu.forEach(e => {
+          const dates = [e.startYear, e.endYear].filter(Boolean).join('–');
+          html += `<div class="pv-row">
+            <span class="pv-dates">${esc(dates)}</span>
+            <span>
+              <span class="pv-role">${esc(e.degree)}</span>
+              <br><span class="pv-org">${esc(e.institution)}</span>
+              ${pvBullets(e)}
+            </span>
+          </div>`;
+        });
+      }
+
+      // ── Skills + Languages
+      const skills = (d.skills || []).filter(Boolean);
+      const langs  = (d.languages || []).filter(Boolean);
+      if (skills.length || langs.length) {
+        html += `<p class="pv-section">Skills &amp; Languages</p>`;
+        html += `<div class="pv-tags">`;
+        skills.forEach(s => { html += `<span class="pv-tag">${esc(s)}</span>`; });
+        langs.forEach(l  => { html += `<span class="pv-tag">${esc(l.name)} · ${esc(l.fluency)}</span>`; });
+        html += `</div>`;
+      }
+
+      // ── Certifications
+      const certs = (d.certifications || []).filter(Boolean);
+      if (certs.length) {
+        html += `<p class="pv-section">Certifications</p>`;
+        certs.forEach(c => {
+          const meta = [c.issuer, c.year].filter(Boolean).join(', ');
+          html += `<div class="pv-row">
+            <span class="pv-dates">${esc(c.year || '')}</span>
+            <span><span class="pv-role">${esc(c.name)}</span>
+            ${meta ? `<br><span class="pv-org">${esc(c.issuer || '')}</span>` : ''}
+            </span>
+          </div>`;
+        });
+      }
+
+      scroll.innerHTML = html;
+      scroll.scrollTop = 0;
+    }
+
+    /* ── Re-render ──────────────────────────────────────────────────────── */
+    function toggleRerender() {
+      const panel = document.getElementById('rerender-panel');
+      const open  = panel.style.display !== 'none';
+      panel.style.display = open ? 'none' : 'block';
+      if (!open) document.getElementById('rerender-notes').focus();
+    }
+
+    function closeRerender() {
+      document.getElementById('rerender-panel').style.display = 'none';
+      document.getElementById('rerender-status').textContent = '';
+    }
+
+    async function doRerender() {
+      if (!previewResults.length) return;
+      const { sourceFilename } = previewResults[previewIndex];
+      if (!sourceFilename) {
+        document.getElementById('rerender-status').textContent =
+          'Source file not available — please re-upload the CV.';
+        return;
+      }
+
+      const notes    = document.getElementById('rerender-notes').value.trim();
+      const statusEl = document.getElementById('rerender-status');
+      statusEl.textContent = 'Re-rendering…';
+
+      // Split notes: structural commands go to structural_notes, everything to extra_notes
+      const structuralKeywords = ['photo','remove:','remove '];
+      const lines = notes.split('\n');
+      const structLines   = lines.filter(l => structuralKeywords.some(k => l.trim().toLowerCase().startsWith(k)));
+      const contentLines  = lines.filter(l => !structuralKeywords.some(k => l.trim().toLowerCase().startsWith(k)));
+
+      try {
+        const resp = await fetch('/rerender', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            source_filename:  sourceFilename,
+            extra_notes:      contentLines.join('\n').trim(),
+            structural_notes: structLines.join('\n').trim(),
+          }),
+        });
+        const data = await resp.json();
+        if (resp.ok && data.ok) {
+          previewResults[previewIndex] = {
+            cvData:          data.data,
+            filename:        data.filename,
+            sourceFilename:  data.source_filename  || sourceFilename,
+            structuralFlags: data.structural_flags || {},
+          };
+          closeRerender();
+          renderPreview();
+          loadOutputs();
+        } else {
+          statusEl.textContent = 'Error: ' + (data.error || 'Unknown error');
+        }
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+    }
+
+    /* ── Init ───────────────────────────────────────────────────────────── */
+    loadOutputs();
+  </script>
+</body>
+</html>

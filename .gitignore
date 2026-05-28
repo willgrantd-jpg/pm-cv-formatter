@@ -1,0 +1,9 @@
+runtime/
+outputs/
+__pycache__/
+*.pyc
+*.pyo
+config.json
+setup_log.txt
+*.log
+.env
