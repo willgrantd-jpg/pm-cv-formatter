@@ -54,8 +54,29 @@ ARCHIVE_URL  = f"https://github.com/{REPO}/archive/refs/heads/main.zip"
 UPDATE_SKIP  = {"config.json", "outputs", "runtime", "setup_log.txt"}
 
 
+def _kill_port_5000():
+    """Kill any process currently listening on port 5000."""
+    try:
+        result = subprocess.run(
+            ['netstat', '-ano'],
+            capture_output=True, text=True
+        )
+        for line in result.stdout.splitlines():
+            if ':5000' in line and 'LISTENING' in line:
+                parts = line.strip().split()
+                pid = parts[-1]
+                if pid and pid.isdigit() and int(pid) > 0:
+                    subprocess.run(['taskkill', '/F', '/PID', pid], capture_output=True)
+                    _log(f"killed PID {pid} on port 5000 after update")
+                    time.sleep(1)   # give the process time to die
+                    break
+    except Exception as exc:
+        _log(f"_kill_port_5000 error: {exc}")
+
+
 def _check_for_update():
-    """Silently check GitHub for a newer version and apply it if found."""
+    """Silently check GitHub for a newer version and apply it if found.
+    Returns True if an update was downloaded and applied, False otherwise."""
     try:
         remote_ver = (
             urllib.request.urlopen(VERSION_URL, timeout=4)
@@ -66,7 +87,7 @@ def _check_for_update():
 
         _log(f"version check: local={local_ver}  remote={remote_ver}")
         if remote_ver == local_ver:
-            return  # already up to date
+            return False  # already up to date
 
         say(f"Update available ({local_ver} → {remote_ver}) — applying...")
         import io, zipfile
@@ -95,10 +116,12 @@ def _check_for_update():
 
         say(f"Updated to v{remote_ver}.")
         _log(f"update applied: {remote_ver}")
+        return True
 
     except Exception as exc:
         _log(f"update check skipped: {exc}")
         # Offline or GitHub unreachable — just continue normally
+        return False
 
 
 _log("=== setup.py started ===")
@@ -147,7 +170,11 @@ _install_fonts()
 
 # ─── Auto-update from GitHub ──────────────────────────────────────────────────
 say("Checking for updates...")
-_check_for_update()
+_updated = _check_for_update()
+if _updated:
+    # New files are on disk — kill the running server so it restarts with the update
+    say("Restarting server with new version...")
+    _kill_port_5000()
 
 # ─── Desktop shortcut (always check, so it works on re-runs too) ──────────────
 def _get_desktop() -> Path:
