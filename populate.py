@@ -40,6 +40,20 @@ def _set_spacing(para, before=0, after=0, line=None):
     ppr.append(sp)
 
 
+def _set_para_indent(para, left=0, hanging=0):
+    """Set paragraph indentation in twips.
+    hanging > 0 creates a hanging indent: first line at (left-hanging), all
+    subsequent lines at left — used so wrapped bullet text clears the em-dash."""
+    ppr = para._p.get_or_add_pPr()
+    for old in ppr.findall(qn('w:ind')):
+        ppr.remove(old)
+    if left or hanging:
+        ind = OxmlElement('w:ind')
+        ind.set(qn('w:left'),    str(left))
+        ind.set(qn('w:hanging'), str(hanging))
+        ppr.append(ind)
+
+
 def _set_para_border_bottom(para, color, sz, space):
     """Attach a bottom border to a paragraph."""
     ppr = para._p.get_or_add_pPr()
@@ -420,7 +434,8 @@ def _add_experience_row(table, entry, is_last=False):
     for bullet in _get_bullets(entry):
         pb = cc.add_paragraph()
         _set_spacing(pb, before=0, after=40, line=280)
-        _add_run(pb, '—  ', size_hp=18, color=GOLD)
+        _set_para_indent(pb, left=360, hanging=360)
+        _add_run(pb, '•  ', size_hp=18, color=GOLD)
         _add_run(pb, bullet, font_name='Montserrat', size_hp=18, color=BODY)
 
     # Thin warm-gray rule between entries (omit after the last one)
@@ -474,7 +489,8 @@ def _add_experience_group_row(table, entry, is_last=False):
         for bullet in _get_bullets(role):
             pb = cc.add_paragraph()
             _set_spacing(pb, before=0, after=40, line=280)
-            _add_run(pb, '—  ', size_hp=18, color=GOLD)
+            _set_para_indent(pb, left=360, hanging=360)
+            _add_run(pb, '•  ', size_hp=18, color=GOLD)
             _add_run(pb, bullet, font_name='Montserrat', size_hp=18, color=BODY)
 
         # Thin divider between roles within the same company (not after last role)
