@@ -358,7 +358,7 @@ def _selected_impact(doc, achievement):
         p = cell.add_paragraph()
         _set_spacing(p, before=0, after=0 if len(bullets) <= 1 else 50, line=280)
         _add_run(p, title + ('  ' if context else ''),
-                 font_name='Calibri', size_hp=20, bold=True, color=NAVY)
+                 font_name='Calibri', size_hp=20, color=NAVY)
         if context:
             _add_run(p, context, font_name='Calibri', size_hp=18, color=GRAY)
 
@@ -367,7 +367,7 @@ def _selected_impact(doc, achievement):
         is_last = (i == len(bullets) - 1)
         p = cell.add_paragraph()
         _set_spacing(p, before=0, after=0 if is_last else 50, line=280)
-        _add_run(p, bullet, font_name='Calibri', size_hp=20, bold=True, color=NAVY)
+        _add_run(p, bullet, font_name='Calibri', size_hp=20, color=NAVY)
 
 
 def _two_col_table(doc):
@@ -408,13 +408,13 @@ def _add_experience_row(table, entry, is_last=False):
     p_co = cc.paragraphs[0]
     _set_spacing(p_co, before=0, after=30)
     _add_run(p_co, entry.get('company') or '',
-             size_hp=22, bold=True, color=NAVY)
+             font_name='Montserrat', size_hp=20, bold=True, color=NAVY)
 
     # Position (italic gold)
     p_pos = cc.add_paragraph()
     _set_spacing(p_pos, before=0, after=80)
     _add_run(p_pos, entry.get('position') or '',
-             size_hp=18, italic=True, color=GOLD)
+             font_name='Montserrat', size_hp=18, italic=True, color=GOLD)
 
     # Bullets  —  gold em-dash prefix + body text (unlimited)
     for bullet in _get_bullets(entry):
@@ -455,7 +455,7 @@ def _add_experience_group_row(table, entry, is_last=False):
     # Company name (once, at the top)
     p_co = cc.paragraphs[0]
     _set_spacing(p_co, before=0, after=40)
-    _add_run(p_co, entry.get('company') or '', size_hp=22, bold=True, color=NAVY)
+    _add_run(p_co, entry.get('company') or '', font_name='Montserrat', size_hp=20, bold=True, color=NAVY)
 
     roles = [r for r in (entry.get('roles') or []) if r]
     for r_idx, role in enumerate(roles):
@@ -464,7 +464,7 @@ def _add_experience_group_row(table, entry, is_last=False):
         # Position (italic gold) + date range (gray) on same line
         p_pos = cc.add_paragraph()
         _set_spacing(p_pos, before=20, after=60)
-        _add_run(p_pos, role.get('position') or '', size_hp=18, italic=True, color=GOLD)
+        _add_run(p_pos, role.get('position') or '', font_name='Montserrat', size_hp=18, italic=True, color=GOLD)
         r_start = (role.get('startYear') or '').strip()
         r_end   = (role.get('endYear')   or '').strip()
         if r_start or r_end:
@@ -518,13 +518,13 @@ def _add_education_row(table, entry, is_last=False):
     p_inst = cc.paragraphs[0]
     _set_spacing(p_inst, before=0, after=30)
     _add_run(p_inst, entry.get('institution') or '',
-             size_hp=22, bold=True, color=NAVY)
+             font_name='Montserrat', size_hp=20, bold=True, color=NAVY)
 
     # Degree (italic gold)
     p_deg = cc.add_paragraph()
     _set_spacing(p_deg, before=0, after=40)
     _add_run(p_deg, entry.get('degree') or '',
-             size_hp=18, italic=True, color=GOLD)
+             font_name='Montserrat', size_hp=18, italic=True, color=GOLD)
 
     # Detail lines — honours, thesis, etc. (unlimited)
     for detail in _get_bullets(entry):
@@ -563,14 +563,14 @@ def _add_certification_row(table, entry, is_last=False):
     # Certification name (bold navy, 11 pt)
     p_name = cc.paragraphs[0]
     _set_spacing(p_name, before=0, after=30)
-    _add_run(p_name, entry.get('name') or '', size_hp=22, bold=True, color=NAVY)
+    _add_run(p_name, entry.get('name') or '', font_name='Montserrat', size_hp=20, bold=True, color=NAVY)
 
     # Issuing body (italic gold, 9 pt) — only if present
     issuer = (entry.get('issuer') or '').strip()
     if issuer:
         p_iss = cc.add_paragraph()
         _set_spacing(p_iss, before=0, after=40)
-        _add_run(p_iss, issuer, size_hp=18, italic=True, color=GOLD)
+        _add_run(p_iss, issuer, font_name='Montserrat', size_hp=18, italic=True, color=GOLD)
 
     # Thin separator between entries (omit after last)
     if not is_last:
@@ -605,8 +605,8 @@ def _languages_skills(doc, languages, skills):
     for idx, lang in enumerate(lang_list):
         name    = (lang.get('name')    or '').strip()
         fluency = (lang.get('fluency') or '').strip()
-        _add_run(lp, name + ' ', size_hp=18, bold=True, color=NAVY)
-        _add_run(lp, f'({fluency})',  size_hp=18, color=GRAY)
+        _add_run(lp, name + ' ', font_name='Montserrat', size_hp=18, bold=True, color=NAVY)
+        _add_run(lp, f'({fluency})', font_name='Montserrat', size_hp=18, color=GRAY)
         if idx < len(lang_list) - 1:
             _add_run(lp, '  ·  ', size_hp=18, color=GRAY)
 
@@ -627,7 +627,7 @@ def _languages_skills(doc, languages, skills):
     sp = sk_c.paragraphs[0]
     _set_spacing(sp, before=0, after=0, line=300)
     skills_text = '  ·  '.join(s for s in (skills or []) if s)
-    _add_run(sp, skills_text, size_hp=18, color=BODY)
+    _add_run(sp, skills_text, font_name='Montserrat', size_hp=18, color=BODY)
 
 
 # ── LinkedIn badge ────────────────────────────────────────────────────────────
