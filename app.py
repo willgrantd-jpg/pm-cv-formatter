@@ -111,6 +111,8 @@ def format_cv():
 
     extra_notes      = request.form.get("extra_notes",      "").strip()
     structural_notes = request.form.get("structural_notes", "").strip()
+    template         = (request.form.get("template", "pm") or "pm").strip().lower()
+    screening_notes  = request.form.get("screening_notes",  "").strip()
 
     # Extract text from any supplementary document and append to notes
     supp_tmp = None
@@ -136,6 +138,12 @@ def format_cv():
         # Step 1: Extract structured JSON via Claude API
         data = process_cv(tmp.name, api_key, extra_notes=extra_notes)
 
+        # Step 1b: Stax variant — map screening notes onto the fixed question list
+        screening = None
+        if template == "stax" and screening_notes:
+            from extract import extract_screening
+            screening = extract_screening(screening_notes, api_key)
+
         # Step 2: Build output filename
         name = data.get("name", "Unknown")
         safe_name = re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
@@ -145,7 +153,8 @@ def format_cv():
 
         # Step 3: Populate template (XML-first, no Word COM)
         populate_template(str(TEMPLATE_PATH), data, str(output_path),
-                          structural_notes=structural_notes)
+                          structural_notes=structural_notes,
+                          variant=template, screening=screening)
 
         # Save source CV for re-render (keep alongside the output docx)
         import shutil
@@ -162,6 +171,8 @@ def format_cv():
             "filename":         output_filename,
             "source_filename":  source_name,
             "structural_flags": s_flags,
+            "template":         template,
+            "screening":        screening,
             "data":             data,
         })
 
@@ -206,6 +217,8 @@ def rerender_cv():
     source_filename  = re.sub(r"[^\w\-. ]", "", body.get("source_filename", ""))
     extra_notes      = body.get("extra_notes",      "").strip()
     structural_notes = body.get("structural_notes", "").strip()
+    template         = (body.get("template", "pm") or "pm").strip().lower()
+    screening_notes  = body.get("screening_notes",  "").strip()
 
     source_path = OUTPUTS_DIR / source_filename
     if not source_path.exists():
@@ -214,6 +227,11 @@ def rerender_cv():
     try:
         data = process_cv(str(source_path), api_key, extra_notes=extra_notes)
 
+        screening = None
+        if template == "stax" and screening_notes:
+            from extract import extract_screening
+            screening = extract_screening(screening_notes, api_key)
+
         name        = data.get("name", "Unknown")
         safe_name   = re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
         out_name    = f"{safe_name}_PM_Profile.docx"
@@ -221,7 +239,8 @@ def rerender_cv():
         OUTPUTS_DIR.mkdir(exist_ok=True)
 
         populate_template(str(TEMPLATE_PATH), data, str(output_path),
-                          structural_notes=structural_notes)
+                          structural_notes=structural_notes,
+                          variant=template, screening=screening)
 
         from populate import _parse_structural
         s_flags = _parse_structural(structural_notes)
@@ -231,6 +250,8 @@ def rerender_cv():
             "filename":         out_name,
             "source_filename":  source_filename,
             "structural_flags": s_flags,
+            "template":         template,
+            "screening":        screening,
             "data":             data,
         })
 

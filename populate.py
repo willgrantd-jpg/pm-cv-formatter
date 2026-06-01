@@ -945,17 +945,64 @@ def _name_header(doc, data, show_photo: bool = False):
              font_name='Calibri', size_hp=18, color=GRAY, char_spacing=200)
 
 
+# ── Stax screening section ────────────────────────────────────────────────────
+
+def _screening_section(doc, screening):
+    """Render the Stax 'Screening Questions' section: optional group sub-labels,
+    each predefined question in bold navy, with the recruiter's mapped answers as
+    gold-bulleted lines beneath. Questions with no mapped answer render alone so
+    the client still sees the full pro-forma."""
+    items = [s for s in (screening or []) if s and (s.get('question') or '').strip()]
+    if not items:
+        return
+
+    _section_header(doc, 'SCREENING QUESTIONS')
+
+    current_group = None
+    for item in items:
+        group    = (item.get('group') or '').strip()
+        question = (item.get('question') or '').strip()
+        bullets  = [b for b in (item.get('bullets') or []) if b and str(b).strip()]
+
+        # Group sub-label (gold, tracked) when the group changes
+        if group and group != current_group:
+            current_group = group
+            pg = doc.add_paragraph()
+            _set_spacing(pg, before=160, after=40)
+            _add_run(pg, group.upper(), font_name='Montserrat', size_hp=16,
+                     bold=True, color=GOLD, char_spacing=120)
+
+        # Question (bold navy)
+        pq = doc.add_paragraph()
+        _set_spacing(pq, before=100, after=40, line=280)
+        _add_run(pq, question, font_name='Montserrat', size_hp=18,
+                 bold=True, color=NAVY)
+
+        # Mapped answers (gold bullet + body)
+        for b in bullets:
+            pb = doc.add_paragraph()
+            _set_spacing(pb, before=0, after=40, line=280)
+            _set_para_indent(pb, left=360, hanging=360)
+            _add_run(pb, '•  ', size_hp=18, color=GOLD)
+            _add_run(pb, str(b).strip(), font_name='Montserrat', size_hp=18, color=BODY)
+
+
 # ── Main entry point ──────────────────────────────────────────────────────────
 
 def populate_template(template_path: str, data: dict, output_path: str,
-                      structural_notes: str = ""):
+                      structural_notes: str = "", variant: str = "pm",
+                      screening=None):
     """
     Build a PM CV Profile .docx matching the v2 design.
 
     template_path : path to PM_CV_Template_v2.docx — preserves header/footer/images.
     data          : structured dict produced by extract.py.
     output_path   : destination .docx path.
+    variant       : "pm" (default) or "stax". The Stax variant moves the summary
+                    to the bottom and appends a Screening Questions section.
+    screening     : list of {"group","question","bullets"} for the Stax variant.
     """
+    variant = (variant or "pm").strip().lower()
     flags = _parse_structural(structural_notes)
 
     doc = Document(template_path)
@@ -965,11 +1012,12 @@ def populate_template(template_path: str, data: dict, output_path: str,
     # 1 ── Candidate name (+ optional photo placeholder)
     _name_header(doc, data, show_photo=flags['photo'])
 
-    # 2 ── Summary (Georgia italic, 10 pt)
-    p_sum = doc.add_paragraph()
-    _set_spacing(p_sum, before=0, after=240, line=340)
-    _add_run(p_sum, data.get('summary') or '',
-             font_name='Georgia', size_hp=20, italic=True, color=BODY)
+    # 2 ── Summary (Georgia italic, 10 pt) — TOP for PM; moved to bottom for Stax
+    if variant != 'stax':
+        p_sum = doc.add_paragraph()
+        _set_spacing(p_sum, before=0, after=240, line=340)
+        _add_run(p_sum, data.get('summary') or '',
+                 font_name='Georgia', size_hp=20, italic=True, color=BODY)
 
     # 3 ── Key Achievements box
     if not flags['remove_achievements']:
@@ -1012,6 +1060,17 @@ def populate_template(template_path: str, data: dict, output_path: str,
         for i, entry in enumerate(certifications):
             _add_certification_row(cert_table, entry,
                                    is_last=(i == len(certifications) - 1))
+
+    # 8 ── Stax variant: Candidate Summary (bottom) + Screening Questions
+    if variant == 'stax':
+        summary = (data.get('summary') or '').strip()
+        if summary:
+            _section_header(doc, 'CANDIDATE SUMMARY')
+            p_sum = doc.add_paragraph()
+            _set_spacing(p_sum, before=0, after=200, line=340)
+            _add_run(p_sum, summary, font_name='Georgia', size_hp=20,
+                     italic=True, color=BODY)
+        _screening_section(doc, screening)
 
     doc.save(output_path)
     _suppress_proofing(output_path)

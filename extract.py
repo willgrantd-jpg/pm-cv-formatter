@@ -325,3 +325,92 @@ def process_cv(cv_path: str, api_key: str, extra_notes: str = "") -> dict:
             )
         raise ValueError("The uploaded file appears to be empty or unreadable.")
     return extract_cv_data(cv_text, api_key, extra_notes=extra_notes)
+
+
+# ── Stax screening-question mapping ───────────────────────────────────────────
+
+# Fixed screening questions defined by the retained client (Stax). Order matters.
+STAX_SCREENING_QUESTIONS = [
+    {"group": "", "question": "Service line, summary of functional responsibilities, reporting lines"},
+    {"group": "", "question": "Buy-side, sell-side, or both?"},
+    {"group": "", "question": "Are they owning workstreams? If so, which workstreams?"},
+    {"group": "", "question": "Are they leading projects end-to-end? How many at one time? How many led in total?"},
+    {"group": "", "question": "Typical team size, structure, and duration for their projects?"},
+    {"group": "", "question": "How long have they been in a project management role?"},
+    {"group": "", "question": "Experience managing junior team members"},
+    {"group": "", "question": "Experience leading client readouts"},
+    {"group": "", "question": "Experience on proposals"},
+    {"group": "", "question": "Description of client engagement responsibilities"},
+    {"group": "", "question": "Vertical / industry exposure"},
+    {"group": "Experience", "question": "Project mix (CDD % / Strategy % / Other %)"},
+    {"group": "Experience", "question": "CDD volume (total / annual / typical length in weeks)"},
+    {"group": "Motivation", "question": "Why are they looking to move or explore opportunities?"},
+    {"group": "Motivation", "question": "Compensation expectations and current salary"},
+    {"group": "Logistics", "question": "Location"},
+    {"group": "Logistics", "question": "Availability (notice period) and availability for interviews"},
+    {"group": "Logistics", "question": "Visa requirements / US citizen?"},
+]
+
+
+SCREENING_SYSTEM_PROMPT = """You map a recruiter's raw screening-call notes onto a fixed list of client screening questions for Patrick Morgan.
+
+You are given N numbered questions and the recruiter's notes. For EACH question, produce the answer using ONLY the notes.
+
+RULES:
+1. Facts only from the notes — never invent or infer facts, numbers, names, dates, or claims. Keep every figure, percentage and number exactly as written. If the notes do not address a question, return an empty list for it.
+2. Beef it up: the consultant captures notes quickly, so the source is terse shorthand. Rewrite each point into a clear, well-formed, professional bullet — complete the sentence, fix grammar, and spell out obvious shorthand — WITHOUT adding any fact that is not in the notes.
+3. Neutral, impersonal voice: write subject-less bullets that start with the verb or noun. NEVER use first person ("I led", "I own") and NEVER use third-person pronouns ("they led", "the candidate manages"). Just "Led...", "Owns...", "Manages...". Examples: note "i led 3 cdd projects end to end" -> "Led three commercial due diligence projects end-to-end."; note "owns 2 workstreams buy side" -> "Owns two workstreams, focused on buy-side."
+4. Each answer is a list of bullet strings. Usually one or two bullets; split into several only when the notes contain genuinely distinct points.
+5. Do not move a fact to a question it does not answer. If unsure where a fact belongs, place it under the single closest-matching question only.
+
+Return ONLY valid JSON, no markdown, no commentary, in exactly this shape:
+{"answers": [["bullet", "bullet"], [], ["bullet"], ...]}
+The "answers" array MUST have exactly N inner lists, in the same order as the questions."""
+
+
+def extract_screening(notes: str, api_key: str) -> list:
+    """Map raw screening notes onto the fixed Stax question list.
+
+    Returns a list of {"group", "question", "bullets"} in canonical order.
+    Answers come only from the notes; questions not covered get empty bullets.
+    Never raises — on any failure returns the question skeleton with no answers.
+    """
+    questions = STAX_SCREENING_QUESTIONS
+    skeleton = [
+        {"group": q["group"], "question": q["question"], "bullets": []}
+        for q in questions
+    ]
+
+    if not notes or not notes.strip():
+        return skeleton
+
+    numbered = "\n".join(f"{i+1}. {q['question']}" for i, q in enumerate(questions))
+    user_content = (
+        f"There are {len(questions)} questions.\n\n"
+        f"QUESTIONS:\n{numbered}\n\n"
+        f"RECRUITER SCREENING NOTES:\n{notes.strip()}"
+    )
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=4096,
+            system=SCREENING_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": user_content}],
+        )
+        raw = message.content[0].text.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        parsed = json.loads(raw)
+        answers = parsed.get("answers", []) if isinstance(parsed, dict) else []
+    except Exception:
+        return skeleton
+
+    result = []
+    for i, q in enumerate(questions):
+        bullets = []
+        if i < len(answers) and isinstance(answers[i], list):
+            bullets = [str(b).strip() for b in answers[i] if b and str(b).strip()]
+        result.append({"group": q["group"], "question": q["question"], "bullets": bullets})
+    return result

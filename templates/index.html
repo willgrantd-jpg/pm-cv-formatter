@@ -337,6 +337,41 @@
       padding: 20px;
     }
 
+    /* ── Template segmented toggle ─────────────────────────────────────── */
+    .template-switch {
+      display: flex;
+      justify-content: center;
+    }
+    .seg {
+      display: inline-flex;
+      gap: 3px;
+      padding: 3px;
+      background: var(--bg-overlay);
+      border: 1px solid var(--border-default);
+      border-radius: 999px;
+    }
+    .seg-btn {
+      padding: 6px 18px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .seg-btn:hover:not(.active) { color: var(--text-primary); }
+    .seg-btn.active {
+      background: var(--pm-blue);
+      color: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+    }
+
+    .screening-block { margin-top: 16px; }
+    #screening-input { min-height: 130px; }
+
     /* ── Header ────────────────────────────────────────────────────────── */
     .header {
       display: flex;
@@ -1113,6 +1148,14 @@
       <!-- CENTER: Upload + Preview -->
       <div class="center-col">
 
+        <!-- Template variant toggle -->
+        <div class="template-switch">
+          <div class="seg" role="tablist" aria-label="Template">
+            <button class="seg-btn active" id="seg-pm"   onclick="setTemplate('pm')"   role="tab">PM template</button>
+            <button class="seg-btn"        id="seg-stax" onclick="setTemplate('stax')" role="tab">Stax template</button>
+          </div>
+        </div>
+
         <!-- Upload card -->
         <div class="card">
 
@@ -1137,6 +1180,14 @@
               <button class="clear-all-btn" onclick="clearAllFiles()">Clear all</button>
             </div>
             <div class="file-list-items" id="file-list-items"></div>
+          </div>
+
+          <!-- Screening Questions (Stax only) -->
+          <div class="screening-block" id="screening-block" style="display:none;">
+            <p class="panel-label">Screening Questions <span style="color:var(--pm-gold);">· Stax</span></p>
+            <p class="panel-hint">Paste your raw screening-call notes. Claude maps them onto Stax's predefined questions — answering only from what you paste, leaving anything not covered blank.</p>
+            <textarea class="chat-textarea" id="screening-input"
+              placeholder="Paste screening-call notes here — e.g.&#10;Mostly buy-side CDD, owns 2 workstreams&#10;Project mix ~70% CDD / 20% strategy&#10;Current £90k, seeking £110k, 3 months notice, London"></textarea>
           </div>
 
           <!-- Format button -->
@@ -1260,6 +1311,16 @@
     /* ── State ──────────────────────────────────────────────────────────── */
     // Each entry: { file, status: 'pending'|'busy'|'ok'|'err', filename, error }
     let selectedFiles = [];
+
+    /* ── Template variant toggle ────────────────────────────────────────── */
+    let currentTemplate = 'pm';
+    function setTemplate(t) {
+      currentTemplate = (t === 'stax') ? 'stax' : 'pm';
+      document.getElementById('seg-pm').classList.toggle('active', currentTemplate === 'pm');
+      document.getElementById('seg-stax').classList.toggle('active', currentTemplate === 'stax');
+      document.getElementById('screening-block').style.display =
+        currentTemplate === 'stax' ? 'block' : 'none';
+    }
 
     /* ── Drop zone ──────────────────────────────────────────────────────── */
     const dropZone  = document.getElementById('drop-zone');
@@ -1421,6 +1482,7 @@
       const chatInput      = document.getElementById('chat-input').value.trim();
       const extraNotes     = [...chatNotes, ...(chatInput ? [chatInput] : [])].join('\n\n');
       const structuralNotes = document.getElementById('structural-input').value.trim();
+      const screeningNotes  = document.getElementById('screening-input').value.trim();
 
       for (const entry of pending) {
         entry.status = 'busy';
@@ -1436,6 +1498,9 @@
         if (extraNotes)       fd.append('extra_notes',       extraNotes);
         if (structuralNotes)  fd.append('structural_notes', structuralNotes);
         if (suppDocFile)      fd.append('supplementary_doc', suppDocFile);
+        fd.append('template', currentTemplate);
+        if (currentTemplate === 'stax' && screeningNotes)
+          fd.append('screening_notes', screeningNotes);
 
         try {
           const resp = await fetch('/format', { method: 'POST', body: fd });
@@ -1448,6 +1513,8 @@
               filename:        data.filename,
               sourceFilename:  data.source_filename  || '',
               structuralFlags: data.structural_flags || {},
+              template:        data.template  || 'pm',
+              screening:       data.screening || [],
             });
             previewIndex = 0;
             successCount++;
@@ -1603,6 +1670,8 @@
     function renderPreview() {
       const { cvData: d, filename, structuralFlags: sf } = previewResults[previewIndex];
       const flags = sf || {};
+      const tmpl      = previewResults[previewIndex].template  || 'pm';
+      const screening = previewResults[previewIndex].screening || [];
 
       // Show/hide nav — ← = previous (older), → = next (newer)
       const nav = document.getElementById('preview-nav');
@@ -1661,8 +1730,8 @@
         : `<p class="pv-name">${esc(d.name)}${liLink}</p>
            <p class="pv-sub">Candidate Profile</p>`;
 
-      // ── Summary
-      if (d.summary) {
+      // ── Summary (top for PM; moved to the bottom for Stax)
+      if (d.summary && tmpl !== 'stax') {
         html += `<p class="pv-summary">${esc(d.summary)}</p>`;
       }
 
@@ -1766,6 +1835,29 @@
         });
       }
 
+      // ── Stax variant: Candidate Summary (bottom) + Screening Questions
+      if (tmpl === 'stax') {
+        if (d.summary) {
+          html += `<p class="pv-section">Candidate Summary</p>
+                   <p class="pv-summary">${esc(d.summary)}</p>`;
+        }
+        const scr = (screening || []).filter(it => it && it.question);
+        if (scr.length) {
+          html += `<p class="pv-section">Screening Questions</p>`;
+          let grp = null;
+          scr.forEach(it => {
+            if (it.group && it.group !== grp) {
+              grp = it.group;
+              html += `<p style="font-size:7.5px;font-weight:700;color:#C8A961;letter-spacing:0.8px;text-transform:uppercase;margin:8px 0 2px;">${esc(it.group)}</p>`;
+            }
+            html += `<p style="font-size:8px;font-weight:700;color:#1B2A4E;margin:5px 0 1px;">${esc(it.question)}</p>`;
+            (it.bullets || []).filter(Boolean).forEach(b => {
+              html += `<p style="margin:1px 0 1px 8px;font-size:7.5px;color:#1A1A1A;"><span style="color:#C8A961;">—</span>&nbsp;${esc(b)}</p>`;
+            });
+          });
+        }
+      }
+
       scroll.innerHTML = html;
       scroll.scrollTop = 0;
     }
@@ -1810,6 +1902,8 @@
             source_filename:  sourceFilename,
             extra_notes:      contentLines.join('\n').trim(),
             structural_notes: structLines.join('\n').trim(),
+            template:         previewResults[previewIndex].template || 'pm',
+            screening_notes:  document.getElementById('screening-input').value.trim(),
           }),
         });
         const data = await resp.json();
@@ -1819,6 +1913,8 @@
             filename:        data.filename,
             sourceFilename:  data.source_filename  || sourceFilename,
             structuralFlags: data.structural_flags || {},
+            template:        data.template  || 'pm',
+            screening:       data.screening || [],
           };
           closeRerender();
           renderPreview();
