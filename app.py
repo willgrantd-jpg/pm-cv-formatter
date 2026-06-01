@@ -15,8 +15,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import json
 import os
 import re
-import threading
-import webbrowser
 
 from flask import Flask, jsonify, render_template, request, send_file
 
@@ -279,6 +277,8 @@ if __name__ == "__main__":
     port = 5000
     url  = f"http://localhost:{port}"
     print(f"\n  PM CV Formatter running at {url}\n")
-    # Open browser after a short delay so Flask has time to start
-    threading.Timer(1.2, lambda: webbrowser.open(url)).start()
-    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=True, reloader_type="stat")
+    # setup.py is the single owner of opening the browser, so app.py must not
+    # (that double-ownership + the reloader's two processes caused 3 tabs).
+    # use_reloader=False: production runs one process; updates restart the
+    # server via setup.py's kill-and-relaunch, so the dev reloader is unneeded.
+    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)

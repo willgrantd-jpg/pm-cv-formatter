@@ -78,12 +78,15 @@ def _check_for_update():
     """Silently check GitHub for a newer version and apply it if found.
     Returns True if an update was downloaded and applied, False otherwise."""
     try:
+        # utf-8-sig strips a leading BOM (version.txt is UTF-8 with BOM).
+        # Reading both sides the same way avoids a false "update available"
+        # every launch (UTF-8 decode vs Windows cp1252 read disagreed on the BOM).
         remote_ver = (
             urllib.request.urlopen(VERSION_URL, timeout=4)
-            .read().decode().strip()
+            .read().decode("utf-8-sig").strip()
         )
         local_ver_file = APP_DIR / "version.txt"
-        local_ver = local_ver_file.read_text().strip() if local_ver_file.exists() else "0.0.0"
+        local_ver = local_ver_file.read_text(encoding="utf-8-sig").strip() if local_ver_file.exists() else "0.0.0"
 
         _log(f"version check: local={local_ver}  remote={remote_ver}")
         if remote_ver == local_ver:
