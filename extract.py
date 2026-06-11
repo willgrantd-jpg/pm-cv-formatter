@@ -194,6 +194,47 @@ def _parse_notes(raw_notes: str) -> tuple[list[str], list[str]]:
     return power_commands, free_notes
 
 
+def _parse_model_json(raw: str, client):
+    """
+    Parse the model's JSON with a safety net. CVs constantly contain stray
+    quotes and odd characters that can leak into the JSON and break one
+    character of syntax - that must never kill the whole format.
+    Order: strict parse -> cheap deterministic repairs -> one model call to
+    fix its own syntax (content unchanged) -> only then surface the error.
+    """
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as first_err:
+        # Cheap repairs: trailing commas before } or ], and literal control
+        # characters inside strings (strict=False tolerates the latter).
+        candidate = re.sub(r",\s*([}\]])", r"\1", raw)
+        try:
+            return json.loads(candidate, strict=False)
+        except json.JSONDecodeError:
+            pass
+        # Last resort: the model fixes its own syntax. Content must not change.
+        try:
+            fix = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=8192,
+                system=(
+                    "You repair malformed JSON. Return ONLY the corrected JSON document - "
+                    "identical content and structure, valid syntax (escape any stray quotes). "
+                    "No commentary, no code fences."
+                ),
+                messages=[{
+                    "role": "user",
+                    "content": f"This JSON fails to parse with: {first_err}\n\n{raw}",
+                }],
+            )
+            fixed = fix.content[0].text.strip()
+            fixed = re.sub(r"^```(?:json)?\s*", "", fixed)
+            fixed = re.sub(r"\s*```$", "", fixed)
+            return json.loads(fixed, strict=False)
+        except Exception:
+            raise first_err
+
+
 def extract_cv_data(cv_text: str, api_key: str, extra_notes: str = "") -> dict:
     """
     Call Claude API with CV text and return parsed JSON dict.
@@ -228,7 +269,7 @@ def extract_cv_data(cv_text: str, api_key: str, extra_notes: str = "") -> dict:
 
     message = client.messages.create(
         model="claude-haiku-4-5",
-        max_tokens=4096,
+        max_tokens=8192,
         system=SYSTEM_PROMPT,
         messages=[
             {
@@ -244,7 +285,7 @@ def extract_cv_data(cv_text: str, api_key: str, extra_notes: str = "") -> dict:
     raw = re.sub(r"^```(?:json)?\s*", "", raw)
     raw = re.sub(r"\s*```$", "", raw)
 
-    data = json.loads(raw)
+    data = _parse_model_json(raw, client)
 
     # Enforce position field is always "Candidate Profile"
     data["position"] = "Candidate Profile"
